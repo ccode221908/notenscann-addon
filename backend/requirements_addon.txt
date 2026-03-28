@@ -1,0 +1,3 @@
+# Additional requirements for notenscann-addon
+# Install with: pip install -r requirements_addon.txt
+qrcode[pil]>=7.4

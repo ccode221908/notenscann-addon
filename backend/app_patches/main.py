@@ -1,0 +1,85 @@
+import os
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from sqlmodel import SQLModel
+from sqlalchemy import create_engine
+from app.config import settings
+import app.models  # noqa: F401 — must import before create_all to register table metadata
+from app.api.routes import scores, files, auth
+
+# Ensure data dirs exist
+settings.uploads_dir.mkdir(parents=True, exist_ok=True)
+settings.scores_dir.mkdir(parents=True, exist_ok=True)
+
+DATABASE_URL = f"sqlite:///{settings.data_dir}/db.sqlite"
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+
+def create_db():
+    SQLModel.metadata.create_all(engine)
+
+app = FastAPI(title="Sheet Music Web", version="0.1.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[o.strip() for o in settings.cors_origins.split(",") if o.strip()],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.on_event("startup")
+def on_startup():
+    create_db()
+    from sqlalchemy import text
+    from sqlmodel import Session, select
+    from app.models import Score
+    from datetime import datetime, timezone
+
+    with engine.connect() as conn:
+        cols = [row[1] for row in conn.execute(text("PRAGMA table_info(score)")).fetchall()]
+        # Auto-migrate: add display_name column if missing
+        if "display_name" not in cols:
+            conn.execute(text("ALTER TABLE score ADD COLUMN display_name TEXT"))
+            conn.commit()
+        # Auto-migrate: add core_id column if missing
+        if "core_id" not in cols:
+            conn.execute(text("ALTER TABLE score ADD COLUMN core_id TEXT"))
+            conn.commit()
+
+    # On every startup: any score still in an in-progress state was interrupted
+    in_progress = {'pending', 'preparing', 'transcribing', 'typesetting',
+                   'processing', 'omr_done'}
+    with Session(engine) as db:
+        stuck = db.exec(select(Score).where(Score.status.in_(in_progress))).all()
+        for score in stuck:
+            score.status = 'failed'
+            score.error_message = 'Verarbeitung unterbrochen (Server-Neustart) — bitte erneut hochladen'
+            score.updated_at = datetime.now(timezone.utc)
+            db.add(score)
+        if stuck:
+            db.commit()
+            import logging
+            logging.getLogger(__name__).warning(
+                "Reset %d interrupted score(s) to failed on startup", len(stuck)
+            )
+
+app.include_router(scores.router, prefix="/api")
+app.include_router(files.router, prefix="/api")
+app.include_router(auth.router)
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+# Serve built frontend static files if FRONTEND_DIST is set and exists.
+_frontend_dist = os.environ.get("FRONTEND_DIST", "")
+if _frontend_dist and os.path.isdir(_frontend_dist):
+    _assets = os.path.join(_frontend_dist, "assets")
+    if os.path.isdir(_assets):
+        app.mount("/assets", StaticFiles(directory=_assets), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    def serve_spa(full_path: str):
+        index = os.path.join(_frontend_dist, "index.html")
+        return FileResponse(index)
