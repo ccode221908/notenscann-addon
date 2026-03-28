@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { ScoreRead, ScoreDetail } from '../types';
+import type { ScoreRead, ScoreDetail } from './types';
 
 const api = axios.create({ baseURL: '' });
 

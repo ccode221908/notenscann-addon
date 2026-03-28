@@ -36,7 +36,7 @@ export default function Login({ onAuthenticated }: LoginProps) {
     pollingRef.current = setInterval(async () => {
       try {
         const result = await pollChallenge(challengeId);
-        if (result.status === 'authenticated' && result.token) {
+        if (result.status === 'authenticated' && result.token && result.coreId) {
           clearInterval(pollingRef.current!);
           onAuthenticated(result.token, result.coreId);
         } else if (result.status === 'expired') {
