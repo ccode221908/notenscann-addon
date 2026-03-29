@@ -5,7 +5,6 @@ interface LoginProps {
   onAuthenticated: (token: string, coreId: string) => void;
 }
 
-const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
 export default function Login({ onAuthenticated }: LoginProps) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -80,41 +79,29 @@ export default function Login({ onAuthenticated }: LoginProps) {
           <div style={{ color: '#c00', marginBottom: '16px', fontSize: '14px' }}>{error}</div>
         )}
 
-        {!loading && !error && (
+        {!loading && !error && qrDataUrl && mobileUri && (
           <>
-            {!isMobile && qrDataUrl && (
-              <>
-                <p style={{ color: '#555', fontSize: '13px', marginBottom: '16px' }}>
-                  QR-Code mit der CorePass-App scannen:
-                </p>
-                <img
-                  src={qrDataUrl}
-                  alt="CorePass Login QR"
-                  style={{ width: '220px', height: '220px', border: '1px solid #e0e0e0', borderRadius: '8px' }}
-                />
-                <p style={{ color: '#aaa', fontSize: '12px', marginTop: '12px' }}>
-                  QR-Code läuft nach 5 Minuten ab und wird automatisch erneuert.
-                </p>
-              </>
-            )}
-
-            {isMobile && mobileUri && (
-              <>
-                <p style={{ color: '#555', fontSize: '13px', marginBottom: '20px' }}>
-                  Tippe auf den Button um CorePass zu öffnen:
-                </p>
-                <a
-                  href={mobileUri}
-                  style={{
-                    display: 'inline-block', background: '#1a73e8', color: '#fff',
-                    padding: '12px 28px', borderRadius: '8px', textDecoration: 'none',
-                    fontSize: '15px', fontWeight: 600,
-                  }}
-                >
-                  Mit CorePass anmelden
-                </a>
-              </>
-            )}
+            <p style={{ color: '#555', fontSize: '13px', marginBottom: '16px' }}>
+              QR-Code mit der CorePass-App scannen:
+            </p>
+            <img
+              src={qrDataUrl}
+              alt="CorePass Login QR"
+              style={{ width: '220px', height: '220px', border: '1px solid #e0e0e0', borderRadius: '8px' }}
+            />
+            <p style={{ color: '#aaa', fontSize: '12px', margin: '12px 0 20px' }}>
+              QR-Code läuft nach 5 Minuten ab und wird automatisch erneuert.
+            </p>
+            <a
+              href={mobileUri}
+              style={{
+                display: 'inline-block', background: '#1a73e8', color: '#fff',
+                padding: '12px 28px', borderRadius: '8px', textDecoration: 'none',
+                fontSize: '15px', fontWeight: 600,
+              }}
+            >
+              Mit CorePass anmelden
+            </a>
           </>
         )}
       </div>
