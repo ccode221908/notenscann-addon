@@ -3,40 +3,53 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import Score from './pages/Score';
 import Login from './pages/Login';
-import { getSession } from './api';
+import Onboarding from './pages/Onboarding';
+import { getSession, getProfile } from './api';
+
+type AppState = 'loading' | 'login' | 'onboarding' | 'app';
 
 export default function App() {
-  const [authChecked, setAuthChecked] = useState(false);
-  const [authenticated, setAuthenticated] = useState(false);
+  const [appState, setAppState] = useState<AppState>('loading');
 
   useEffect(() => {
-    getSession().then(({ authenticated: ok, coreId }) => {
-      if (ok && coreId) {
-        localStorage.setItem('auth_core_id', coreId);
-        setAuthenticated(true);
+    getSession().then(async ({ authenticated: ok, coreId }) => {
+      if (!ok || !coreId) {
+        setAppState('login');
+        return;
       }
-      setAuthChecked(true);
+      localStorage.setItem('auth_core_id', coreId);
+      const profile = await getProfile().catch(() => ({ user_name: '' }));
+      setAppState(profile.user_name ? 'app' : 'onboarding');
     });
   }, []);
 
-  if (!authChecked) {
+  if (appState === 'loading') {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', fontFamily: 'sans-serif', color: '#888' }}>
-        Laden…
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        minHeight: '100vh', fontFamily: 'system-ui, sans-serif', color: '#888',
+        background: 'linear-gradient(135deg, #1a73e8 0%, #7c3aed 100%)',
+      }}>
+        <div style={{ color: '#fff', fontSize: '18px', opacity: 0.8 }}>Laden…</div>
       </div>
     );
   }
 
-  if (!authenticated) {
+  if (appState === 'login') {
     return (
       <Login
-        onAuthenticated={(token, coreId) => {
+        onAuthenticated={async (token, coreId) => {
           localStorage.setItem('auth_token', token);
           localStorage.setItem('auth_core_id', coreId);
-          setAuthenticated(true);
+          const profile = await getProfile().catch(() => ({ user_name: '' }));
+          setAppState(profile.user_name ? 'app' : 'onboarding');
         }}
       />
     );
+  }
+
+  if (appState === 'onboarding') {
+    return <Onboarding onDone={() => setAppState('app')} />;
   }
 
   return (

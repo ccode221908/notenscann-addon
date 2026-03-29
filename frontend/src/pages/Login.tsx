@@ -5,7 +5,6 @@ interface LoginProps {
   onAuthenticated: (token: string, coreId: string) => void;
 }
 
-
 export default function Login({ onAuthenticated }: LoginProps) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [mobileUri, setMobileUri] = useState<string | null>(null);
@@ -40,7 +39,7 @@ export default function Login({ onAuthenticated }: LoginProps) {
           onAuthenticated(result.token, result.coreId);
         } else if (result.status === 'expired') {
           clearInterval(pollingRef.current!);
-          startChallenge(); // auto-refresh
+          startChallenge();
         }
       } catch {
         // ignore transient errors
@@ -59,24 +58,39 @@ export default function Login({ onAuthenticated }: LoginProps) {
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       justifyContent: 'center', minHeight: '100vh',
-      fontFamily: 'sans-serif', background: '#f5f5f5', padding: '24px',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      background: 'linear-gradient(135deg, #1a73e8 0%, #7c3aed 100%)',
+      padding: '24px',
     }}>
       <div style={{
-        background: '#fff', borderRadius: '12px', padding: '40px 32px',
-        boxShadow: '0 2px 16px rgba(0,0,0,0.1)', maxWidth: '420px', width: '100%',
+        background: '#fff', borderRadius: '24px', padding: '44px 36px',
+        boxShadow: '0 24px 64px rgba(0,0,0,0.2)', maxWidth: '400px', width: '100%',
         textAlign: 'center',
       }}>
-        <h1 style={{ margin: '0 0 4px', fontSize: '24px' }}>Sheet Music Web</h1>
-        <p style={{ margin: '0 0 32px', color: '#666', fontSize: '14px' }}>
+        {/* Logo */}
+        <div style={{ fontSize: '52px', lineHeight: 1, marginBottom: '10px' }}>🎼</div>
+        <h1 style={{
+          margin: '0 0 4px', fontSize: '26px', fontWeight: 800,
+          background: 'linear-gradient(135deg, #1a73e8, #7c3aed)',
+          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+        }}>
+          Sheet Music Web
+        </h1>
+        <p style={{ margin: '0 0 32px', color: '#888', fontSize: '14px' }}>
           Bitte mit CorePass anmelden
         </p>
 
         {loading && (
-          <div style={{ color: '#888', padding: '32px 0' }}>Wird geladen…</div>
+          <div style={{ color: '#aaa', padding: '32px 0', fontSize: '15px' }}>Wird geladen…</div>
         )}
 
         {error && (
-          <div style={{ color: '#c00', marginBottom: '16px', fontSize: '14px' }}>{error}</div>
+          <div style={{
+            background: '#fff0f0', border: '1px solid #fca5a5', borderRadius: '10px',
+            padding: '12px 16px', color: '#dc2626', fontSize: '14px', marginBottom: '16px',
+          }}>
+            {error}
+          </div>
         )}
 
         {!loading && !error && qrDataUrl && mobileUri && (
@@ -84,20 +98,28 @@ export default function Login({ onAuthenticated }: LoginProps) {
             <p style={{ color: '#555', fontSize: '13px', marginBottom: '16px' }}>
               QR-Code mit der CorePass-App scannen:
             </p>
-            <img
-              src={qrDataUrl}
-              alt="CorePass Login QR"
-              style={{ width: '220px', height: '220px', border: '1px solid #e0e0e0', borderRadius: '8px' }}
-            />
-            <p style={{ color: '#aaa', fontSize: '12px', margin: '12px 0 20px' }}>
-              QR-Code läuft nach 5 Minuten ab und wird automatisch erneuert.
+            <div style={{
+              display: 'inline-block', padding: '10px', borderRadius: '16px',
+              border: '2px solid #e8f0fe',
+              boxShadow: '0 0 0 4px rgba(26,115,232,0.07)',
+            }}>
+              <img
+                src={qrDataUrl}
+                alt="CorePass Login QR"
+                style={{ display: 'block', width: '200px', height: '200px', borderRadius: '8px' }}
+              />
+            </div>
+            <p style={{ color: '#bbb', fontSize: '12px', margin: '12px 0 20px' }}>
+              Läuft nach 5 Minuten ab und wird automatisch erneuert.
             </p>
             <a
               href={mobileUri}
               style={{
-                display: 'inline-block', background: '#1a73e8', color: '#fff',
-                padding: '12px 28px', borderRadius: '8px', textDecoration: 'none',
-                fontSize: '15px', fontWeight: 600,
+                display: 'inline-block',
+                background: 'linear-gradient(135deg, #1a73e8, #7c3aed)',
+                color: '#fff', padding: '12px 28px', borderRadius: '10px',
+                textDecoration: 'none', fontSize: '15px', fontWeight: 700,
+                boxShadow: '0 4px 14px rgba(124,58,237,0.35)',
               }}
             >
               Mit CorePass anmelden
