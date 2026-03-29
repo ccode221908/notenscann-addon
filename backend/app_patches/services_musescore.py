@@ -58,23 +58,40 @@ async def _run_musescore(input_file: Path, output_path: Path) -> None:
         )
 
 
-def _write_footer_mss(footer_text: str, mss_path: Path) -> None:
-    """Write a minimal MuseScore style file that sets the centre footer on all pages."""
-    escaped = (footer_text
-               .replace("&", "&amp;")
-               .replace("<", "&lt;")
-               .replace(">", "&gt;")
-               .replace('"', "&quot;"))
-    mss_path.write_text(
-        '<?xml version="1.0" encoding="UTF-8"?>\n'
-        '<museScore version="3.02">\n'
-        '  <Style>\n'
-        f'    <oddFooterC>{escaped}</oddFooterC>\n'
-        f'    <evenFooterC>{escaped}</evenFooterC>\n'
-        '  </Style>\n'
-        '</museScore>\n',
-        encoding="utf-8",
-    )
+def _add_footer_to_pdf(pdf_path: Path, footer_text: str) -> None:
+    """Overlay centred footer text on every page of a PDF, in-place."""
+    import io
+    from pypdf import PdfReader, PdfWriter
+    from reportlab.pdfgen import canvas as rl_canvas
+    from reportlab.lib.units import mm
+
+    reader = PdfReader(str(pdf_path))
+    writer = PdfWriter()
+
+    for page in reader.pages:
+        w = float(page.mediabox.width)
+        h = float(page.mediabox.height)
+
+        # Build a single-page overlay with just the footer text
+        buf = io.BytesIO()
+        c = rl_canvas.Canvas(buf, pagesize=(w, h))
+        c.setFont("Helvetica", 8)
+        c.setFillColorRGB(0.35, 0.35, 0.35)
+        text_w = c.stringWidth(footer_text, "Helvetica", 8)
+        c.drawString((w - text_w) / 2, 8 * mm, footer_text)
+        c.save()
+
+        buf.seek(0)
+        overlay_page = PdfReader(buf).pages[0]
+        page.merge_page(overlay_page)
+        writer.add_page(page)
+
+    # Write back to the same path via a temp file
+    tmp = pdf_path.with_suffix(".tmp.pdf")
+    with open(str(tmp), "wb") as f:
+        writer.write(f)
+    tmp.replace(pdf_path)
+    logger.info("Added footer to PDF: %s", pdf_path.name)
 
 
 async def export_score(musicxml_file: Path, output_dir: Path, score_id: str = "", footer_text: str = "") -> Dict[str, Any]:
@@ -100,29 +117,19 @@ async def export_score(musicxml_file: Path, output_dir: Path, score_id: str = ""
     await _run_musescore(musicxml_file, clean_xml_path)
     logger.info("Exported clean MusicXML: %s", clean_xml_path)
 
-    # 1b. Export full PDF (with optional footer via MuseScore style file)
+    # 1b. Export full PDF
     pdf_path = output_dir / f"{stem}.pdf"
-    if footer_text:
-        mss_path = output_dir / "footer.mss"
-        _write_footer_mss(footer_text, mss_path)
-        env = _musescore_env()
-        cmd = [_musescore_cmd(), "-S", str(mss_path), "-o", str(pdf_path), str(musicxml_file)]
-        logger.info("Running MuseScore (PDF with footer): %s", " ".join(cmd))
-        proc = await asyncio.create_subprocess_exec(
-            *cmd, env=env,
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-        )
-        try:
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=TIMEOUT_SECONDS)
-        except asyncio.TimeoutError:
-            proc.kill()
-            await proc.communicate()
-            raise asyncio.TimeoutError(f"MuseScore PDF timed out after {TIMEOUT_SECONDS}s")
-        if proc.returncode != 0:
-            raise RuntimeError(f"MuseScore PDF failed (rc={proc.returncode}): {stderr.decode(errors='replace')}")
-    else:
-        await _run_musescore(musicxml_file, pdf_path)
+    await _run_musescore(musicxml_file, pdf_path)
     logger.info("Exported PDF: %s", pdf_path)
+
+    # 1b-footer: overlay footer text on every page (post-process, best-effort)
+    if footer_text:
+        try:
+            await asyncio.get_event_loop().run_in_executor(
+                None, _add_footer_to_pdf, pdf_path, footer_text
+            )
+        except Exception as exc:
+            logger.warning("Footer overlay failed (non-fatal): %s", exc)
 
     # 1b-mirror. Copy PDF to shared SheetsPDF directory (best-effort)
     try:
