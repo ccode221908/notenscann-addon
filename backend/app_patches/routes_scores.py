@@ -73,8 +73,10 @@ async def process_score(score_id: str, ocr: bool = False):
             domain = urlparse(settings.corepass_base_url).netloc or settings.corepass_base_url
             profile = db.get(UserProfile, score.core_id) if score.core_id else None
             user_name = (profile.user_name or "") if profile else ""
-            parts_list = [p for p in [score.core_id or "", user_name] if p]
-            footer_text = f"Scanned by {domain} für {' / '.join(parts_list)}" if domain else ""
+            parts_list = [p for p in [user_name] if p]
+            core_part = f"CoreID {score.core_id}" if score.core_id else ""
+            footer_parts = [p for p in [core_part] + parts_list if p]
+            footer_text = f"Scanned by {domain} for {' / '.join(footer_parts)}" if domain else ""
             result = await export_score(musicxml_path, output_dir, score_id=score_id, footer_text=footer_text)
 
             for part in result["parts"]:
