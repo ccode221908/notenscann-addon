@@ -200,28 +200,16 @@ export default function ScoreList({ scores, onRefresh, onDeleted }: ScoreListPro
     <div style={{ maxWidth: '800px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: '#111827' }}>Meine Partituren</h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {hasInProgress && (
-            <span style={{ fontSize: '13px', color: '#7c3aed', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{
-                display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%',
-                border: '2px solid #ddd8fe', borderTopColor: '#7c3aed',
-                animation: 'spin 0.7s linear infinite',
-              }} />
-              Verarbeitung läuft…
-            </span>
-          )}
-          <button
-            onClick={onRefresh}
-            style={{
-              padding: '6px 14px', border: '1px solid #e5e7eb', borderRadius: '8px',
-              background: '#fff', cursor: 'pointer', fontSize: '13px', color: '#6b7280',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-            }}
-          >
-            ↻ Aktualisieren
-          </button>
-        </div>
+        {hasInProgress && (
+          <span style={{ fontSize: '13px', color: '#7c3aed', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{
+              display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%',
+              border: '2px solid #ddd8fe', borderTopColor: '#7c3aed',
+              animation: 'spin 0.7s linear infinite',
+            }} />
+            Verarbeitung läuft…
+          </span>
+        )}
       </div>
 
       {scores.length === 0 ? (
