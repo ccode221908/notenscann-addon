@@ -5,6 +5,7 @@ import logging
 import time
 import uuid
 from typing import Optional
+from urllib.parse import quote
 
 import qrcode
 from fastapi import Depends, HTTPException, status
@@ -47,8 +48,9 @@ def create_challenge() -> dict:
     callback_url = f"{base_url}/auth/callback"
 
     # corepass: URI — CorePass app opens this to authenticate
-    login_uri = f"corepass:login/?session={challenge_id}&reply={callback_url}"
-    # Mobile deep-link variant (same content, different presentation)
+    # Parameters per TMMAC corepass-auth: sess, conn (URL-encoded), type=callback
+    encoded_callback = quote(callback_url, safe="")
+    login_uri = f"corepass:login/?sess={challenge_id}&conn={encoded_callback}&type=callback"
     mobile_uri = login_uri
 
     # Generate QR code as base64 PNG
