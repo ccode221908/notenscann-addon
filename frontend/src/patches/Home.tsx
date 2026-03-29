@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { listScores, logout } from '../api';
+import { listScores, logout, getProfile, updateProfile } from '../api';
 import type { ScoreRead } from '../types';
 import UploadZone from '../components/UploadZone';
 import ScoreList from '../components/ScoreList';
@@ -15,7 +15,7 @@ function shortCoreId(id: string): string {
 
 export default function Home() {
   const [scores, setScores] = useState<ScoreRead[]>([]);
-  const [userName, setUserName] = useState(() => localStorage.getItem('user_display_name') ?? '');
+  const [userName, setUserName] = useState('');
   const navigate = useNavigate();
   const coreId = localStorage.getItem('auth_core_id') ?? '';
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -28,9 +28,12 @@ export default function Home() {
 
   useEffect(() => {
     fetchScores();
+    getProfile()
+      .then((p) => setUserName(p.user_name ?? ''))
+      .catch(() => {});
   }, [fetchScores]);
 
-  // Auto-poll when any score is in progress
+  // Auto-poll while any score is in progress
   useEffect(() => {
     const hasInProgress = scores.some((s) => IN_PROGRESS.has(s.status));
     if (hasInProgress) {
@@ -60,10 +63,8 @@ export default function Home() {
     navigate(0);
   };
 
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setUserName(val);
-    localStorage.setItem('user_display_name', val);
+  const handleNameBlur = () => {
+    updateProfile(userName).catch(() => {});
   };
 
   return (
@@ -89,7 +90,8 @@ export default function Home() {
             type="text"
             placeholder="Dein Name (optional)"
             value={userName}
-            onChange={handleNameChange}
+            onChange={(e) => setUserName(e.target.value)}
+            onBlur={handleNameBlur}
             style={{
               border: '1px solid #ddd', borderRadius: '6px',
               padding: '5px 12px', fontSize: '14px', color: '#333',

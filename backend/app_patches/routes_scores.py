@@ -69,8 +69,11 @@ async def process_score(score_id: str, ocr: bool = False):
             _set_status("typesetting")
             from app.config import settings
             from urllib.parse import urlparse
+            from app.models import UserProfile
             domain = urlparse(settings.corepass_base_url).netloc or settings.corepass_base_url
-            parts_list = [p for p in [score.core_id or "", score.user_name or ""] if p]
+            profile = db.get(UserProfile, score.core_id) if score.core_id else None
+            user_name = (profile.user_name or "") if profile else ""
+            parts_list = [p for p in [score.core_id or "", user_name] if p]
             footer_text = f"Scanned by {domain} für {' / '.join(parts_list)}" if domain else ""
             result = await export_score(musicxml_path, output_dir, score_id=score_id, footer_text=footer_text)
 
@@ -104,7 +107,6 @@ async def upload_score(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     ocr: bool = Form(False),
-    user_name: str = Form(""),
     core_id: str = Depends(get_current_user),
 ):
     suffix = Path(file.filename).suffix.lower()
@@ -120,7 +122,6 @@ async def upload_score(
             original_filename=file.filename,
             status="pending",
             core_id=core_id,
-            user_name=user_name.strip() or None,
         )
         db.add(score)
         db.commit()

@@ -50,3 +50,39 @@ def session(core_id: str = Depends(get_current_user)):
 def logout():
     """Client-side logout — token is discarded by the frontend."""
     return {"ok": True}
+
+
+class ProfileUpdate(BaseModel):
+    user_name: str
+
+
+def _get_engine():
+    from app.main import engine
+    return engine
+
+
+@router.get("/profile")
+def get_profile(core_id: str = Depends(get_current_user)):
+    """Return the current user's profile (name etc.)."""
+    from sqlmodel import Session
+    from app.models import UserProfile
+    with Session(_get_engine()) as db:
+        profile = db.get(UserProfile, core_id)
+        return {"user_name": profile.user_name if profile else ""}
+
+
+@router.put("/profile")
+def update_profile(body: ProfileUpdate, core_id: str = Depends(get_current_user)):
+    """Create or update the current user's profile."""
+    from sqlmodel import Session
+    from app.models import UserProfile
+    from datetime import datetime, timezone
+    with Session(_get_engine()) as db:
+        profile = db.get(UserProfile, core_id)
+        if profile is None:
+            profile = UserProfile(core_id=core_id)
+        profile.user_name = body.user_name.strip() or None
+        profile.updated_at = datetime.now(timezone.utc)
+        db.add(profile)
+        db.commit()
+        return {"user_name": profile.user_name}

@@ -17,8 +17,6 @@ export async function uploadScore(file: File, ocr: boolean = false): Promise<Sco
   const formData = new FormData();
   formData.append('file', file);
   formData.append('ocr', String(ocr));
-  const userName = localStorage.getItem('user_display_name') ?? '';
-  if (userName) formData.append('user_name', userName);
   const response = await api.post<ScoreRead>('/api/scores', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
@@ -116,6 +114,16 @@ export async function logout(): Promise<void> {
   localStorage.removeItem('auth_token');
   localStorage.removeItem('auth_core_id');
   await axios.post('/auth/logout').catch(() => {});
+}
+
+export async function getProfile(): Promise<{ user_name: string }> {
+  const response = await api.get<{ user_name: string }>('/auth/profile');
+  return response.data;
+}
+
+export async function updateProfile(userName: string): Promise<{ user_name: string }> {
+  const response = await api.put<{ user_name: string }>('/auth/profile', { user_name: userName });
+  return response.data;
 }
 
 export default api;
