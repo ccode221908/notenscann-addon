@@ -58,7 +58,26 @@ async def _run_musescore(input_file: Path, output_path: Path) -> None:
         )
 
 
-async def export_score(musicxml_file: Path, output_dir: Path, score_id: str = "") -> Dict[str, Any]:
+def _write_footer_mss(footer_text: str, mss_path: Path) -> None:
+    """Write a minimal MuseScore style file that sets the centre footer on all pages."""
+    escaped = (footer_text
+               .replace("&", "&amp;")
+               .replace("<", "&lt;")
+               .replace(">", "&gt;")
+               .replace('"', "&quot;"))
+    mss_path.write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<museScore version="3.02">\n'
+        '  <Style>\n'
+        f'    <oddFooterC>{escaped}</oddFooterC>\n'
+        f'    <evenFooterC>{escaped}</evenFooterC>\n'
+        '  </Style>\n'
+        '</museScore>\n',
+        encoding="utf-8",
+    )
+
+
+async def export_score(musicxml_file: Path, output_dir: Path, score_id: str = "", footer_text: str = "") -> Dict[str, Any]:
     """
     Export a MusicXML file to PDF and MIDI using MuseScore.
     Also exports per-part MIDI files and copies PDF to shared SheetsPDF dir.
@@ -81,9 +100,28 @@ async def export_score(musicxml_file: Path, output_dir: Path, score_id: str = ""
     await _run_musescore(musicxml_file, clean_xml_path)
     logger.info("Exported clean MusicXML: %s", clean_xml_path)
 
-    # 1b. Export full PDF
+    # 1b. Export full PDF (with optional footer via MuseScore style file)
     pdf_path = output_dir / f"{stem}.pdf"
-    await _run_musescore(musicxml_file, pdf_path)
+    if footer_text:
+        mss_path = output_dir / "footer.mss"
+        _write_footer_mss(footer_text, mss_path)
+        env = _musescore_env()
+        cmd = [_musescore_cmd(), "-S", str(mss_path), "-o", str(pdf_path), str(musicxml_file)]
+        logger.info("Running MuseScore (PDF with footer): %s", " ".join(cmd))
+        proc = await asyncio.create_subprocess_exec(
+            *cmd, env=env,
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        )
+        try:
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=TIMEOUT_SECONDS)
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.communicate()
+            raise asyncio.TimeoutError(f"MuseScore PDF timed out after {TIMEOUT_SECONDS}s")
+        if proc.returncode != 0:
+            raise RuntimeError(f"MuseScore PDF failed (rc={proc.returncode}): {stderr.decode(errors='replace')}")
+    else:
+        await _run_musescore(musicxml_file, pdf_path)
     logger.info("Exported PDF: %s", pdf_path)
 
     # 1b-mirror. Copy PDF to shared SheetsPDF directory (best-effort)

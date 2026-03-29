@@ -46,6 +46,10 @@ def on_startup():
         if "core_id" not in cols:
             conn.execute(text("ALTER TABLE score ADD COLUMN core_id TEXT"))
             conn.commit()
+        # Auto-migrate: add user_name column if missing
+        if "user_name" not in cols:
+            conn.execute(text("ALTER TABLE score ADD COLUMN user_name TEXT"))
+            conn.commit()
 
     # On every startup: any score still in an in-progress state was interrupted
     in_progress = {'pending', 'preparing', 'transcribing', 'typesetting',

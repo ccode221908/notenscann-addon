@@ -1,9 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { listScores, logout } from '../api';
 import type { ScoreRead } from '../types';
 import UploadZone from '../components/UploadZone';
 import ScoreList from '../components/ScoreList';
+
+const IN_PROGRESS = new Set(['pending', 'preparing', 'transcribing', 'typesetting', 'processing', 'omr_done']);
+const POLL_INTERVAL = 3000;
 
 function shortCoreId(id: string): string {
   if (id.length <= 16) return id;
@@ -12,8 +15,10 @@ function shortCoreId(id: string): string {
 
 export default function Home() {
   const [scores, setScores] = useState<ScoreRead[]>([]);
+  const [userName, setUserName] = useState(() => localStorage.getItem('user_display_name') ?? '');
   const navigate = useNavigate();
   const coreId = localStorage.getItem('auth_core_id') ?? '';
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchScores = useCallback(() => {
     listScores()
@@ -25,32 +30,73 @@ export default function Home() {
     fetchScores();
   }, [fetchScores]);
 
+  // Auto-poll when any score is in progress
+  useEffect(() => {
+    const hasInProgress = scores.some((s) => IN_PROGRESS.has(s.status));
+    if (hasInProgress) {
+      if (!pollRef.current) {
+        pollRef.current = setInterval(fetchScores, POLL_INTERVAL);
+      }
+    } else {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    }
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+  }, [scores, fetchScores]);
+
   const handleUploaded = useCallback((score: ScoreRead) => {
     setScores((prev) => [score, ...prev]);
   }, []);
 
   const handleLogout = async () => {
     await logout();
-    navigate(0); // full page reload to show login screen
+    navigate(0);
+  };
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setUserName(val);
+    localStorage.setItem('user_display_name', val);
   };
 
   return (
     <div style={{ padding: '32px 16px', fontFamily: 'sans-serif', maxWidth: '900px', margin: '0 auto' }}>
       <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-        <h1 style={{ margin: '0 0 6px' }}>Sheet Music Web</h1>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '12px', color: '#999', fontFamily: 'monospace' }}>
-            {shortCoreId(coreId)}
-          </span>
-          <button
-            onClick={handleLogout}
+        <h1 style={{ margin: '0 0 16px' }}>Sheet Music Web</h1>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontSize: '15px', color: '#666', fontFamily: 'monospace' }}>
+              {shortCoreId(coreId)}
+            </span>
+            <button
+              onClick={handleLogout}
+              style={{
+                background: 'none', border: '1px solid #ddd', borderRadius: '4px',
+                padding: '2px 10px', fontSize: '12px', color: '#888', cursor: 'pointer',
+              }}
+            >
+              Abmelden
+            </button>
+          </div>
+          <input
+            type="text"
+            placeholder="Dein Name (optional)"
+            value={userName}
+            onChange={handleNameChange}
             style={{
-              background: 'none', border: '1px solid #ddd', borderRadius: '4px',
-              padding: '2px 10px', fontSize: '12px', color: '#888', cursor: 'pointer',
+              border: '1px solid #ddd', borderRadius: '6px',
+              padding: '5px 12px', fontSize: '14px', color: '#333',
+              width: '260px', textAlign: 'center',
+              outline: 'none',
             }}
-          >
-            Abmelden
-          </button>
+          />
         </div>
       </div>
       <UploadZone onUploaded={handleUploaded} />

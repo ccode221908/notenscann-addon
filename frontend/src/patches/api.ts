@@ -17,6 +17,8 @@ export async function uploadScore(file: File, ocr: boolean = false): Promise<Sco
   const formData = new FormData();
   formData.append('file', file);
   formData.append('ocr', String(ocr));
+  const userName = localStorage.getItem('user_display_name') ?? '';
+  if (userName) formData.append('user_name', userName);
   const response = await api.post<ScoreRead>('/api/scores', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });

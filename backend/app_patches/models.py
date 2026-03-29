@@ -12,6 +12,7 @@ class Score(ScoreBase, table=True):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
     status: str = Field(default="pending")  # pending, processing, omr_done, omr_failed, ready, failed
     core_id: Optional[str] = None           # CorePass user ID (blockchain address)
+    user_name: Optional[str] = None         # display name entered by user
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     error_message: Optional[str] = None
