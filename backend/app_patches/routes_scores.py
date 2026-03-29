@@ -76,7 +76,7 @@ async def process_score(score_id: str, ocr: bool = False):
             parts_list = [p for p in [user_name] if p]
             core_part = f"CoreID {score.core_id}" if score.core_id else ""
             footer_parts = [p for p in [core_part] + parts_list if p]
-            footer_text = f"Created by {domain} for {' / '.join(footer_parts)}" if domain else ""
+            footer_text = f"Created with {domain} for {' / '.join(footer_parts)}" if domain else ""
             result = await export_score(musicxml_path, output_dir, score_id=score_id, footer_text=footer_text)
 
             for part in result["parts"]:
