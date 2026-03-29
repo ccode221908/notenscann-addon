@@ -2,8 +2,8 @@
 import base64
 import io
 import logging
+import secrets
 import time
-import uuid
 from typing import Optional
 from urllib.parse import quote
 
@@ -43,7 +43,7 @@ def create_challenge() -> dict:
     _purge_expired()
     s = _settings()
 
-    challenge_id = str(uuid.uuid4())
+    challenge_id = secrets.token_hex(16)  # 32 hex chars, no dashes — CorePass requires this format
     base_url = s.corepass_base_url.rstrip("/")
     callback_url = f"{base_url}/auth/callback"
 
